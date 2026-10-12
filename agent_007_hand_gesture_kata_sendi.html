@@ -16,9 +16,9 @@
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- MediaPipe Hands & Camera Utils -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <!-- MediaPipe Hands & Camera Utils (Without strict CORS header constraints for frame embedding) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 
     <style>
         body {
@@ -214,12 +214,17 @@
                     </div>
 
                     <!-- Camera Status Alert -->
-                    <div id="cameraStatus" class="mb-5 p-2.5 rounded-lg bg-slate-900/60 border border-cyan-500/30 text-xs text-cyan-300 flex items-center justify-center space-x-2">
-                        <i class="fa-solid fa-spinner fa-spin" id="camSpinner"></i>
-                        <span id="camStatusText">Memuatkan model pengecaman tangan MediaPipe...</span>
+                    <div id="cameraStatus" class="mb-5 p-2.5 rounded-lg bg-slate-900/60 border border-cyan-500/30 text-xs text-cyan-300 flex items-center justify-between space-x-2">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-spinner fa-spin" id="camSpinner"></i>
+                            <span id="camStatusText">Memuatkan kamera & model pengecam tangan...</span>
+                        </div>
+                        <button id="directMouseModeBtn" type="button" class="px-2.5 py-1 text-[11px] bg-cyan-900/80 hover:bg-cyan-700 text-cyan-200 rounded border border-cyan-400/40 transition-all shrink-0">
+                            Guna Tetikus
+                        </button>
                     </div>
 
-                    <button id="startBtn" disabled class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-orbitron font-bold text-lg tracking-wider shadow-lg shadow-cyan-500/30 opacity-50 cursor-not-allowed transition-all transform active:scale-95">
+                    <button id="startBtn" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-orbitron font-bold text-lg tracking-wider shadow-lg shadow-cyan-500/30 transition-all transform active:scale-95">
                         MULAKAN MISI 007
                     </button>
                 </div>
@@ -543,27 +548,31 @@
         const questionNumTag = document.getElementById('questionNumTag');
         
         const pipCanvas = document.getElementById('pipCanvas');
-        const pipCtx = pipCanvas.getContext('2d');
+        const pipCtx = pipCanvas ? pipCanvas.getContext('2d') : null;
         const webcamElement = document.getElementById('webcam');
         const gestureNotice = document.getElementById('gestureNotice');
 
         const bgCanvas = document.getElementById('bgCanvas');
-        const bgCtx = bgCanvas.getContext('2d');
+        const bgCtx = bgCanvas ? bgCanvas.getContext('2d') : null;
         let particles = [];
 
         function resizeCanvas() {
-            bgCanvas.width = window.innerWidth;
-            bgCanvas.height = window.innerHeight;
-            pipCanvas.width = 320;
-            pipCanvas.height = 240;
+            if (bgCanvas) {
+                bgCanvas.width = window.innerWidth;
+                bgCanvas.height = window.innerHeight;
+            }
+            if (pipCanvas) {
+                pipCanvas.width = 320;
+                pipCanvas.height = 240;
+            }
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
         for (let i = 0; i < 40; i++) {
             particles.push({
-                x: Math.random() * bgCanvas.width,
-                y: Math.random() * bgCanvas.height,
+                x: Math.random() * (bgCanvas ? bgCanvas.width : 1000),
+                y: Math.random() * (bgCanvas ? bgCanvas.height : 800),
                 radius: Math.random() * 2 + 1,
                 speedX: (Math.random() - 0.5) * 0.5,
                 speedY: (Math.random() - 0.5) * 0.5,
@@ -572,41 +581,43 @@
         }
 
         function renderBackground() {
-            bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-            
-            // Draw grid pattern
-            bgCtx.strokeStyle = 'rgba(0, 240, 255, 0.04)';
-            bgCtx.lineWidth = 1;
-            const gridSize = 40;
-            for (let x = 0; x < bgCanvas.width; x += gridSize) {
-                bgCtx.beginPath();
-                bgCtx.moveTo(x, 0);
-                bgCtx.lineTo(x, bgCanvas.height);
-                bgCtx.stroke();
-            }
-            for (let y = 0; y < bgCanvas.height; y += gridSize) {
-                bgCtx.beginPath();
-                bgCtx.moveTo(0, y);
-                bgCtx.lineTo(bgCanvas.width, y);
-                bgCtx.stroke();
-            }
+            if (bgCtx && bgCanvas) {
+                bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+                
+                // Draw grid pattern
+                bgCtx.strokeStyle = 'rgba(0, 240, 255, 0.04)';
+                bgCtx.lineWidth = 1;
+                const gridSize = 40;
+                for (let x = 0; x < bgCanvas.width; x += gridSize) {
+                    bgCtx.beginPath();
+                    bgCtx.moveTo(x, 0);
+                    bgCtx.lineTo(x, bgCanvas.height);
+                    bgCtx.stroke();
+                }
+                for (let y = 0; y < bgCanvas.height; y += gridSize) {
+                    bgCtx.beginPath();
+                    bgCtx.moveTo(0, y);
+                    bgCtx.lineTo(bgCanvas.width, y);
+                    bgCtx.stroke();
+                }
 
-            // Particles update
-            bgCtx.fillStyle = '#00f0ff';
-            particles.forEach(p => {
-                p.x += p.speedX;
-                p.y += p.speedY;
-                if (p.x < 0) p.x = bgCanvas.width;
-                if (p.x > bgCanvas.width) p.x = 0;
-                if (p.y < 0) p.y = bgCanvas.height;
-                if (p.y > bgCanvas.height) p.y = 0;
+                // Particles update
+                bgCtx.fillStyle = '#00f0ff';
+                particles.forEach(p => {
+                    p.x += p.speedX;
+                    p.y += p.speedY;
+                    if (p.x < 0) p.x = bgCanvas.width;
+                    if (p.x > bgCanvas.width) p.x = 0;
+                    if (p.y < 0) p.y = bgCanvas.height;
+                    if (p.y > bgCanvas.height) p.y = 0;
 
-                bgCtx.globalAlpha = p.alpha;
-                bgCtx.beginPath();
-                bgCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                bgCtx.fill();
-            });
-            bgCtx.globalAlpha = 1.0;
+                    bgCtx.globalAlpha = p.alpha;
+                    bgCtx.beginPath();
+                    bgCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    bgCtx.fill();
+                });
+                bgCtx.globalAlpha = 1.0;
+            }
 
             // Lerp Crosshair Smoothing
             crosshairPos.x += (targetPos.x - crosshairPos.x) * 0.3;
@@ -628,134 +639,150 @@
         let hands = null;
         let camera = null;
 
-        function initMediaPipe() {
-            hands = new Hands({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-            });
-
-            hands.setOptions({
-                maxNumHands: 1,
-                modelComplexity: 1,
-                minDetectionConfidence: 0.6,
-                minTrackingConfidence: 0.6
-            });
-
-            hands.onResults(onHandResults);
-
-            camera = new Camera(webcamElement, {
-                onFrame: async () => {
-                    await hands.send({ image: webcamElement });
-                },
-                width: 640,
-                height: 480
-            });
-
-            camera.start()
-                .then(() => {
-                    const statusText = document.getElementById('camStatusText');
-                    const spinner = document.getElementById('camSpinner');
-                    if (statusText) statusText.innerText = "Kamera bersedia! Kepit ibu jari untuk menembak.";
-                    if (spinner) spinner.className = "fa-solid fa-circle-check text-green-400 text-sm";
-                    if (startBtn) {
-                        startBtn.disabled = false;
-                        startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    }
-                })
-                .catch((err) => {
-                    console.warn("Webcam access error:", err);
-                    const statusText = document.getElementById('camStatusText');
-                    const spinner = document.getElementById('camSpinner');
-                    if (statusText) statusText.innerText = "Kamera tidak dijumpai. Mod Tetikus diaktifkan secara automatik.";
-                    if (spinner) spinner.className = "fa-solid fa-circle-exclamation text-amber-400 text-sm";
-                    enableMouseMode();
-                    if (startBtn) {
-                        startBtn.disabled = false;
-                        startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    }
-                });
-        }
-
-        function onHandResults(results) {
-            pipCtx.save();
-            pipCtx.clearRect(0, 0, pipCanvas.width, pipCanvas.height);
-            pipCtx.drawImage(results.image, 0, 0, pipCanvas.width, pipCanvas.height);
-
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const landmarks = results.multiHandLandmarks[0];
-                
-                // Draw skeleton on PIP preview
-                drawHandSkeleton(pipCtx, landmarks);
-
-                // Landmark 8: Index Finger Tip (Arah Sasaran)
-                const indexTip = landmarks[8];
-                // Landmark 4: Thumb Tip (Ibu Jari)
-                const thumbTip = landmarks[4];
-                // Landmark 5: Index Finger MCP (Pangkal Jari Telunjuk)
-                const indexMCP = landmarks[5];
-
-                // Screen Position Mapping (Mirrored X coordinate)
-                if (!isMouseMode) {
-                    targetPos.x = (1 - indexTip.x) * window.innerWidth;
-                    targetPos.y = indexTip.y * window.innerHeight;
-                }
-
-                // Calculate distance between Thumb Tip (4) and Index Finger Tip (8) or Index MCP (5)
-                const distanceIndexThumb = Math.hypot(
-                    (indexTip.x - thumbTip.x),
-                    (indexTip.y - thumbTip.y)
-                );
-                
-                const distanceKnuckleThumb = Math.hypot(
-                    (indexMCP.x - thumbTip.x),
-                    (indexMCP.y - thumbTip.y)
-                );
-
-                // THUMB PINCH GESTURE CONDITION ("Ibu Jari Dikepit"):
-                // Pinching happens when thumb tip is close to index finger (< 0.08 normalized unit)
-                const isThumbPinching = distanceIndexThumb < 0.08 || distanceKnuckleThumb < 0.07;
-
-                if (gestureNotice) {
-                    gestureNotice.innerText = isThumbPinching ? "💥 IBU JARI DIKEPIT! (TEMBAK)" : "🎯 IBU JARI DIBUKA (MENYASAR)";
-                    gestureNotice.className = isThumbPinching 
-                        ? "absolute bottom-1 left-0 w-full text-center text-[10px] font-bold text-red-400 bg-red-950/90 py-0.5 animate-pulse" 
-                        : "absolute bottom-1 left-0 w-full text-center text-[10px] font-bold text-cyan-400 bg-slate-950/80 py-0.5";
-                }
-
-                // Trigger laser shot ONLY on edge transition when Thumb is Pinched/Dikepit
-                if (isThumbPinching && !lastPinchState && isGameActive) {
-                    fireLaserShot();
-                }
-                lastPinchState = isThumbPinching;
-
-            } else {
-                if (gestureNotice) {
-                    gestureNotice.innerText = "Mencari isyarat tangan...";
-                    gestureNotice.className = "absolute bottom-1 left-0 w-full text-center text-[10px] font-bold text-amber-400 bg-slate-950/80 py-0.5";
-                }
-            }
-            pipCtx.restore();
-        }
-
-        function drawHandSkeleton(ctx, landmarks) {
-            ctx.fillStyle = '#00f0ff';
-            ctx.strokeStyle = '#00f0ff';
-            ctx.lineWidth = 2;
-
-            landmarks.forEach((lm) => {
-                const x = lm.x * pipCanvas.width;
-                const y = lm.y * pipCanvas.height;
-                ctx.beginPath();
-                ctx.arc(x, y, 3, 0, Math.PI * 2);
-                ctx.fill();
-            });
-        }
-
         function enableMouseMode() {
             isMouseMode = true;
             if (toggleMouseBtn) {
                 toggleMouseBtn.classList.add('bg-cyan-500', 'text-slate-950', 'border-cyan-400');
                 toggleMouseBtn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Mod Tetikus Aktif';
             }
+        }
+
+        function onHandResults(results) {
+            if (!pipCtx || !pipCanvas) return;
+
+            pipCtx.save();
+            pipCtx.clearRect(0, 0, pipCanvas.width, pipCanvas.height);
+            if (results.image) {
+                pipCtx.drawImage(results.image, 0, 0, pipCanvas.width, pipCanvas.height);
+            }
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+
+                // Draw simple skeleton / keypoints
+                drawHandLandmarks(pipCtx, landmarks);
+
+                if (gestureNotice) gestureNotice.innerText = "Tangan Dikesan! Kepit Ibu Jari Tembak";
+
+                if (!isMouseMode) {
+                    // Index Finger Tip (Landmark 8) for targeting
+                    const indexTip = landmarks[8];
+                    // Mirror X because webcam is mirrored
+                    targetPos.x = (1 - indexTip.x) * window.innerWidth;
+                    targetPos.y = indexTip.y * window.innerHeight;
+
+                    // Thumb Tip (Landmark 4) vs Index Tip (8) distance for Pinch
+                    const thumbTip = landmarks[4];
+                    const dx = thumbTip.x - indexTip.x;
+                    const dy = thumbTip.y - indexTip.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    const isPinching = distance < 0.085;
+
+                    if (isPinching && !lastPinchState && isGameActive) {
+                        fireLaserShot();
+                    }
+                    lastPinchState = isPinching;
+                }
+            } else {
+                if (gestureNotice) gestureNotice.innerText = "Mencari tangan...";
+                lastPinchState = false;
+            }
+            pipCtx.restore();
+        }
+
+        function drawHandLandmarks(ctx, landmarks) {
+            ctx.fillStyle = '#00f0ff';
+            ctx.strokeStyle = '#00f0ff';
+            ctx.lineWidth = 2;
+
+            landmarks.forEach((pt) => {
+                const x = pt.x * pipCanvas.width;
+                const y = pt.y * pipCanvas.height;
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function initMediaPipe() {
+            // Safety Timeout fallback if camera/CDN fails
+            const fallbackTimeout = setTimeout(() => {
+                const statusText = document.getElementById('camStatusText');
+                const spinner = document.getElementById('camSpinner');
+                if (statusText) statusText.innerText = "Mod Tetikus/Sentuhan Diaktifkan.";
+                if (spinner) spinner.className = "fa-solid fa-mouse-pointer text-cyan-400 text-sm";
+                enableMouseMode();
+            }, 3000);
+
+            try {
+                if (typeof Hands === 'undefined' || typeof Camera === 'undefined') {
+                    throw new Error("MediaPipe libraries not loaded");
+                }
+
+                hands = new Hands({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                });
+
+                hands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.6,
+                    minTrackingConfidence: 0.6
+                });
+
+                hands.onResults(onHandResults);
+
+                camera = new Camera(webcamElement, {
+                    onFrame: async () => {
+                        if (hands && webcamElement) {
+                            try {
+                                await hands.send({ image: webcamElement });
+                            } catch (e) {
+                                console.warn("Frame send error:", e);
+                            }
+                        }
+                    },
+                    width: 640,
+                    height: 480
+                });
+
+                camera.start()
+                    .then(() => {
+                        clearTimeout(fallbackTimeout);
+                        const statusText = document.getElementById('camStatusText');
+                        const spinner = document.getElementById('camSpinner');
+                        if (statusText) statusText.innerText = "Kamera bersedia! Kepit ibu jari untuk menembak.";
+                        if (spinner) spinner.className = "fa-solid fa-circle-check text-green-400 text-sm";
+                    })
+                    .catch((err) => {
+                        console.warn("Webcam access error:", err);
+                        clearTimeout(fallbackTimeout);
+                        const statusText = document.getElementById('camStatusText');
+                        const spinner = document.getElementById('camSpinner');
+                        if (statusText) statusText.innerText = "Kamera disekat. Mod Tetikus diaktifkan!";
+                        if (spinner) spinner.className = "fa-solid fa-circle-exclamation text-amber-400 text-sm";
+                        enableMouseMode();
+                    });
+            } catch (err) {
+                console.warn("MediaPipe init error:", err);
+                clearTimeout(fallbackTimeout);
+                const statusText = document.getElementById('camStatusText');
+                const spinner = document.getElementById('camSpinner');
+                if (statusText) statusText.innerText = "Mod Tetikus/Sentuhan diaktifkan automatik.";
+                if (spinner) spinner.className = "fa-solid fa-mouse-pointer text-cyan-400 text-sm";
+                enableMouseMode();
+            }
+        }
+
+        // Direct fallback button click handler
+        const directMouseModeBtn = document.getElementById('directMouseModeBtn');
+        if (directMouseModeBtn) {
+            directMouseModeBtn.addEventListener('click', () => {
+                enableMouseMode();
+                const statusText = document.getElementById('camStatusText');
+                if (statusText) statusText.innerText = "Mod Tetikus diaktifkan!";
+            });
         }
 
         if (toggleMouseBtn) {
@@ -778,8 +805,14 @@
         });
 
         window.addEventListener('click', (e) => {
-            if (isGameActive && (isMouseMode || e.target.closest('.target-card'))) {
-                fireLaserShot();
+            if (isGameActive) {
+                const targetCard = e.target.closest('.target-card');
+                if (targetCard) {
+                    activeHoverTarget = targetCard;
+                    fireLaserShot();
+                } else if (isMouseMode) {
+                    fireLaserShot();
+                }
             }
         });
 
@@ -972,7 +1005,7 @@
         if (startBtn) startBtn.addEventListener('click', startGame);
         if (restartBtn) restartBtn.addEventListener('click', startGame);
 
-        // Initialize MediaPipe AI Model on Page Load
+        // Initialize MediaPipe AI Model on Page Load safely
         window.onload = () => {
             initMediaPipe();
         };
